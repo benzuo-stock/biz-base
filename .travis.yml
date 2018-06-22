@@ -1,0 +1,20 @@
+branches:
+  - master
+  - develop
+
+language: php
+php:
+  - '7.1'
+
+services:
+  - mysql
+
+before_install:
+  - mysql -e 'CREATE DATABASE `biz-framework-test` DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci'
+  - composer install
+
+script: phpunit
+
+cache:
+  directories:
+    - $HOME/.composer/cache

@@ -1,0 +1,9 @@
+.project/
+.settings/
+.vscode/
+.idea/
+.sonar/
+.DS_Store
+.php_cs.cache
+/report/
+/vendor/
