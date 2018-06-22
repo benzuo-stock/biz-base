@@ -9,7 +9,7 @@ return array(
         'port' => 3306,
         'name' => 'biz_base_test',
         'user' => 'root',
-        'password' => '',
+        'password' => 'root',
         'charset' => 'utf8',
     ),
 );

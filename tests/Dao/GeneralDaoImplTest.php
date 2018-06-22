@@ -12,6 +12,7 @@ class GeneralDaoImplTest extends TestCase
 
     public function __construct()
     {
+        parent::__construct(null, array(), '');
         $config = array(
             'db.options' => array(
                 'driver' => getenv('DB_DRIVER'),
