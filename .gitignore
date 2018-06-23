@@ -6,5 +6,5 @@
 .DS_Store
 .php_cs.cache
 .scannerwork/
-/report/
+/reports/
 /vendor/

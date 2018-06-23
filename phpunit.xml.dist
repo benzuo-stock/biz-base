@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- http://www.phpunit.de/manual/current/en/appendixes.configuration.html -->
 <phpunit
     backupGlobals               = "false"
     backupStaticAttributes      = "false"
@@ -32,11 +31,11 @@
 
     <filter>
         <whitelist>
-            <file>../src/Context/Biz.php</file>
-            <file>../src/Dao/GeneralDaoImpl.php</file>
-            <file>../src/Dao/MigrationBootstrap.php</file>
-            <file>../src/DataStructure/UniquePriorityQueue.php</file>
-            <file>../src/UnitTests/UnitTestsBootstrap.php</file>
+            <file>src/Context/Biz.php</file>
+            <file>src/Dao/GeneralDaoImpl.php</file>
+            <file>src/Dao/MigrationBootstrap.php</file>
+            <file>src/DataStructure/UniquePriorityQueue.php</file>
+            <file>src/UnitTests/UnitTestsBootstrap.php</file>
         </whitelist>
     </filter>
 </phpunit>
