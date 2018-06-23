@@ -14,23 +14,23 @@ abstract class BaseTestCase extends TestCase
 
     public function setUp()
     {
-        self::emptyDatabase();
+        static::emptyDatabase();
     }
 
     public static function setBiz($biz)
     {
-        self::$biz = $biz;
+        static::$biz = $biz;
     }
 
     public static function emptyDatabaseQuickly()
     {
-        $clear = new DatabaseDataClearer(self::$biz['db']);
+        $clear = new DatabaseDataClearer(static::$biz['db']);
         $clear->clearQuickly();
     }
 
     public static function emptyDatabase()
     {
-        $clear = new DatabaseDataClearer(self::$biz['db']);
+        $clear = new DatabaseDataClearer(static::$biz['db']);
         $clear->clear();
     }
 }

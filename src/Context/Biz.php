@@ -37,12 +37,12 @@ class Biz extends Container
             };
         };
 
-        $this['dao.proxy'] = $this->factory(function($biz) {
+        $this['dao.proxy'] = $this->factory(function ($biz) {
             return new DaoProxy($biz);
         });
 
-        $this['autoload.object_maker.dao'] = function($biz) {
-            return function($namespace, $name) use ($biz) {
+        $this['autoload.object_maker.dao'] = function ($biz) {
+            return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
                 $dao = new $class($biz);
                 $declares = $dao->declares();

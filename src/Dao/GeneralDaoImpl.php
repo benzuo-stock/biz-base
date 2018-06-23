@@ -46,7 +46,9 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
 
         if (is_numeric($identifier)) {
             return $this->updateById($identifier, $fields);
-        } elseif (is_array($identifier)) {
+        }
+
+        if (is_array($identifier)) {
             return $this->updateByConditions($identifier, $fields);
         }
 
@@ -131,7 +133,7 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
 
         $builder->execute();
 
-        $resultBuilder = $this->createQueryBuilder($conditions)->select('*')->from($this->table(), $this->table());
+        $resultBuilder = $this->createQueryBuilder($conditions)->select('*')->from($this->table());
 
         return $resultBuilder->execute()->fetchAll();
     }
@@ -245,7 +247,7 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
         });
 
         $builder = $this->getQueryBuilder($conditions);
-        $builder->from($this->table(), $this->table());
+        $builder->from($this->table());
 
         $declares = $this->declares();
         $declares['conditions'] = isset($declares['conditions']) ? $declares['conditions'] : array();
@@ -265,16 +267,18 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
     private function getTimestampField($mode = null)
     {
         if (empty($this->timestamps)) {
-            return;
+            return null;
         }
 
         if ($mode == 'created') {
             return isset($this->timestamps[0]) ? $this->timestamps[0] : null;
-        } elseif ($mode == 'updated') {
-            return isset($this->timestamps[1]) ? $this->timestamps[1] : null;
-        } else {
-            throw $this->createDaoException('mode error.');
         }
+
+        if ($mode == 'updated') {
+            return isset($this->timestamps[1]) ? $this->timestamps[1] : null;
+        }
+
+        throw $this->createDaoException('mode error.');
     }
 
     private function createDaoException($message = '', $code = 0)
