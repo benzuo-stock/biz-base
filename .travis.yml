@@ -22,7 +22,7 @@ addons:
       secure: $SONAR_TOKEN
 
 script:
-  - phpunit --coverage-xml=/report
+  - phpunit --coverage-xml=report
   - sonar-scanner
 
 cache:
