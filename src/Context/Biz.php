@@ -3,12 +3,10 @@
 namespace Benzuo\Biz\Base\Context;
 
 use Benzuo\Biz\Base\Dao\DaoProxy\DaoProxy;
-use Benzuo\Biz\Base\Event\Event;
 use Benzuo\Biz\Base\Dao\FieldSerializer;
 use Pimple\Container;
 use Pimple\ServiceProviderInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class Biz extends Container
 {
@@ -20,7 +18,6 @@ class Biz extends Container
         parent::__construct();
 
         $this['debug'] = false;
-        $this['logger'] = null;
         $this['migration.directories'] = new \ArrayObject();
 
         $this['autoload.aliases'] = new \ArrayObject(array('' => 'Biz'));
@@ -45,7 +42,6 @@ class Biz extends Container
             return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
                 $dao = new $class($biz);
-                $declares = $dao->declares();
                 $daoProxy = $biz['dao.proxy'];
                 $daoProxy->setDao($dao);
                 return $daoProxy;

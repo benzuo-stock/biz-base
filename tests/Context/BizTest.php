@@ -5,7 +5,6 @@ namespace Tests;
 use Benzuo\Biz\Base\Context\Biz;
 use Pimple\Container;
 use Pimple\ServiceProviderInterface;
-use Benzuo\Biz\Base\Provider\MonologServiceProvider;
 use PHPUnit\Framework\TestCase;
 
 class BizTest extends TestCase
@@ -36,8 +35,6 @@ class BizTest extends TestCase
 
         $this->assertEquals('test_1', $biz['test_1']);
         $this->assertEquals('option1_value', $biz['test_1.options']['option1']);
-
-        $biz->register(new MonologServiceProvider());
     }
 
     public function testBoot()

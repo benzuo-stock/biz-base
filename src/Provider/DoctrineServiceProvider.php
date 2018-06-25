@@ -13,7 +13,7 @@ use Pimple\ServiceProviderInterface;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Configuration;
 use Doctrine\Common\EventManager;
-use Symfony\Bridge\Doctrine\Logger\DbalLogger;
+use Doctrine\DBAL\Logging\SQLLogger;
 
 /**
  * Doctrine DBAL Provider.
@@ -22,12 +22,10 @@ use Symfony\Bridge\Doctrine\Logger\DbalLogger;
  */
 class DoctrineServiceProvider implements ServiceProviderInterface
 {
-    /**
-     * @SuppressWarnings(PHPMD.NPathComplexity)
-     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
-     */
     public function register(Container $app)
     {
+        $app['db.sql_logger'] = null;
+
         $app['db.default_options'] = array(
             'driver' => 'pdo_mysql',
             'dbname' => null,
@@ -87,11 +85,11 @@ class DoctrineServiceProvider implements ServiceProviderInterface
             $app['dbs.options.initializer']();
 
             $configs = new Container();
-            $addLogger = isset($app['logger']) && null !== $app['logger'] && class_exists('Symfony\Bridge\Doctrine\Logger\DbalLogger');
+            $addLogger = $app['db.sql_logger'] instanceof SQLLogger;
             foreach ($app['dbs.options'] as $name => $options) {
                 $configs[$name] = new Configuration();
                 if ($addLogger) {
-                    $configs[$name]->setSQLLogger(new DbalLogger($app['logger'], isset($app['stopwatch']) ? $app['stopwatch'] : null));
+                    $configs[$name]->setSQLLogger($app['db.sql_logger']);
                 }
             }
 

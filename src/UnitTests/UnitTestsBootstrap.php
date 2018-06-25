@@ -15,9 +15,6 @@ class UnitTestsBootstrap
         $this->biz = $biz;
     }
 
-    /**
-     * @SuppressWarnings(PHPMD.StaticAccess)
-     */
     public function boot()
     {
         if (isset($this->biz['db.options'])) {
