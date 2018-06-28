@@ -2,7 +2,7 @@
 
 namespace Benzuo\Biz\Base\Context;
 
-use Benzuo\Biz\Base\Dao\DaoProxy\DaoProxy;
+use Benzuo\Biz\Base\Dao\DaoProxy;
 use Benzuo\Biz\Base\Dao\FieldSerializer;
 use Pimple\Container;
 use Pimple\ServiceProviderInterface;
@@ -20,11 +20,15 @@ class Biz extends Container
         $this['debug'] = false;
         $this['migration.directories'] = new \ArrayObject();
 
-        $this['autoload.aliases'] = new \ArrayObject(array('' => 'Biz'));
-
         $this['dao.serializer'] = function () {
             return new FieldSerializer();
         };
+
+        $this['dispatcher'] = function () {
+            return new EventDispatcher();
+        };
+
+        $this['autoload.aliases'] = new \ArrayObject(array('' => 'Biz'));
 
         $this['autoload.object_maker.service'] = function ($biz) {
             return function ($namespace, $name) use ($biz) {
@@ -34,17 +38,10 @@ class Biz extends Container
             };
         };
 
-        $this['dao.proxy'] = $this->factory(function ($biz) {
-            return new DaoProxy($biz);
-        });
-
         $this['autoload.object_maker.dao'] = function ($biz) {
             return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
-                $dao = new $class($biz);
-                $daoProxy = $biz['dao.proxy'];
-                $daoProxy->setDao($dao);
-                return $daoProxy;
+                return new DaoProxy($biz, new $class($biz));
             };
         };
 
@@ -57,10 +54,6 @@ class Biz extends Container
                     'dao' => $biz['autoload.object_maker.dao'],
                 )
             );
-        };
-
-        $this['dispatcher'] = function () {
-            return new EventDispatcher();
         };
 
         foreach ($values as $key => $value) {
