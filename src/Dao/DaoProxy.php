@@ -3,18 +3,19 @@
 namespace Benzuo\Biz\Base\Dao;
 
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Cache\CacheItemInterface;
 
 class DaoProxy
 {
-    protected $container;
     protected $dao;
     protected $serializer;
+    protected $cacheItemPool;
 
-    public function __construct($container, DaoInterface $dao)
+    public function __construct(DaoInterface $dao, SerializerInterface $serializer, CacheItemPoolInterface $cacheItemPool = null)
     {
-        $this->container = $container;
         $this->dao = $dao;
-        $this->serializer = new FieldSerializer();
+        $this->serializer = $serializer;
+        $this->cacheItemPool = $cacheItemPool;
     }
 
     public function __call($method, $arguments)
@@ -55,16 +56,26 @@ class DaoProxy
     protected function get($method, $arguments)
     {
         // lock模式下，需要穿透cache进入mysql
-        // $lastArgument = end($arguments);
-        // reset($arguments);
-        // if (is_array($lastArgument) && isset($lastArgument['lock']) && true === $lastArgument['lock']) {
-        //     $row = $this->callRealDao($method, $arguments);
-        //     $this->unserialize($row);
-        //     return $row;
-        // }
+        // 使用方法：$this->getUserDao()->get($id, array('lock' => $lock));
+        $lastArgument = end($arguments);
+        reset($arguments);
+        if (is_array($lastArgument) && isset($lastArgument['lock']) && true === $lastArgument['lock']) {
+            $row = $this->callRealDao($method, $arguments);
+            $this->unserialize($row);
+            return $row;
+        }
+
+        $cacheItem = $this->getCacheItem($this->getCacheKey($method, $arguments));
+        if ($cacheItem && $cacheItem->isHit()) {
+            return $cacheItem->get();
+        }
 
         $row = $this->callRealDao($method, $arguments);
         $this->unserialize($row);
+
+        if ($cacheItem) {
+            $this->setCacheItem($cacheItem->set($row));
+        }
 
         return $row;
     }
@@ -76,9 +87,19 @@ class DaoProxy
 
     protected function search($method, $arguments)
     {
+        $cacheItem = $this->getCacheItem($this->getCacheKey($method, $arguments));
+        if ($cacheItem && $cacheItem->isHit()) {
+            return $cacheItem->get();
+        }
+
         $rows = $this->callRealDao($method, $arguments);
         if (!empty($rows)) {
             $this->unserializes($rows);
+        }
+
+        // 5000条以上结果不缓存
+        if ($cacheItem && count($rows) <= 5000) {
+            $this->setCacheItem($cacheItem->set($rows));
         }
 
         return $rows;
@@ -86,7 +107,16 @@ class DaoProxy
 
     protected function count($method, $arguments)
     {
+        $cacheItem = $this->getCacheItem($this->getCacheKey($method, $arguments));
+        if ($cacheItem && $cacheItem->isHit()) {
+            return $cacheItem->get();
+        }
+
         $count = $this->callRealDao($method, $arguments);
+
+        if ($cacheItem) {
+            $this->setCacheItem($cacheItem->set($count));
+        }
 
         return $count;
     }
@@ -261,8 +291,39 @@ class DaoProxy
         }
     }
 
-    private function getCacheKey(DaoInterface $dao, $method, $arguments)
+    /**
+     * get cache item from pool
+     * @param $key
+     * @return bool|CacheItemInterface
+     */
+    private function getCacheItem($key)
     {
-        return sprintf('dao:%s:%s:%s', $dao->table(), $method, json_encode($arguments));
+        if (!$this->cacheItemPool) {
+            return false;
+        }
+
+        try {
+            return $this->cacheItemPool->getItem($key);
+        } catch (\Psr\Cache\InvalidArgumentException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @param CacheItemInterface $cacheItem
+     * @return bool
+     */
+    private function setCacheItem(CacheItemInterface $cacheItem)
+    {
+        if (!$this->cacheItemPool) {
+            return false;
+        }
+
+        return $this->cacheItemPool->save($cacheItem);
+    }
+
+    private function getCacheKey($method, $arguments)
+    {
+        return sprintf('dao:%s:%s:%s', $this->dao->table(), $method, json_encode($arguments));
     }
 }

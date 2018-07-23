@@ -24,6 +24,8 @@ class Biz extends Container
             return new FieldSerializer();
         };
 
+        $this['dao.cache.adapter'] = null;
+
         $this['dispatcher'] = function () {
             return new EventDispatcher();
         };
@@ -33,7 +35,6 @@ class Biz extends Container
         $this['autoload.object_maker.service'] = function ($biz) {
             return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Service\\Impl\\{$name}Impl";
-
                 return new $class($biz);
             };
         };
@@ -41,7 +42,7 @@ class Biz extends Container
         $this['autoload.object_maker.dao'] = function ($biz) {
             return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
-                return new DaoProxy($biz, new $class($biz));
+                return new DaoProxy(new $class($biz));
             };
         };
 
