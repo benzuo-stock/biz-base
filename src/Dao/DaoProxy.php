@@ -140,6 +140,8 @@ class DaoProxy
         $row = $this->callRealDao($method, $arguments);
         $this->unserialize($row);
 
+        $this->upgradeCacheVersion();
+
         return $row;
     }
 
@@ -174,6 +176,8 @@ class DaoProxy
             $this->unserialize($row);
         }
 
+        $this->upgradeCacheVersion();
+
         return $row;
     }
 
@@ -181,12 +185,16 @@ class DaoProxy
     {
         $result = $this->callRealDao($method, $arguments);
 
+        $this->upgradeCacheVersion();
+
         return $result;
     }
 
     protected function delete($method, $arguments)
     {
         $result = $this->callRealDao($method, $arguments);
+
+        $this->upgradeCacheVersion();
 
         return $result;
     }
@@ -214,6 +222,8 @@ class DaoProxy
 
         $result = $this->callRealDao($method, $arguments);
 
+        $this->upgradeCacheVersion();
+
         return $result;
     }
 
@@ -237,12 +247,16 @@ class DaoProxy
 
         $result = $this->callRealDao($method, $arguments);
 
+        $this->upgradeCacheVersion();
+
         return $result;
     }
 
     protected function batchDelete($method, $arguments)
     {
         $result = $this->callRealDao($method, $arguments);
+
+        $this->upgradeCacheVersion();
 
         return $result;
     }
@@ -292,7 +306,7 @@ class DaoProxy
     }
 
     /**
-     * get cache item from pool
+     * get cache item from pool, will return a new cache item if not exist
      * @param $key
      * @return bool|CacheItemInterface
      */
@@ -324,6 +338,38 @@ class DaoProxy
 
     private function getCacheKey($method, $arguments)
     {
-        return sprintf('dao:%s:%s:%s', $this->dao->table(), $method, json_encode($arguments));
+        return sprintf('dao.%s.v%s.%s.%s', $this->dao->table(), $this->getCacheVersion(), $method, md5(json_encode($arguments)));
+    }
+
+    private function getCacheVersion()
+    {
+        $defaultVersion = 1;
+
+        if (!$this->cacheItemPool) {
+            return $defaultVersion;
+        }
+
+        $versionKey = sprintf('dao:%s:v', $this->dao->table());
+        $versionItem = $this->getCacheItem($versionKey);
+        if ($versionItem->isHit()) {
+            return $versionItem->get();
+        }
+
+        $this->setCacheItem($versionItem->set($defaultVersion));
+
+        return $defaultVersion;
+    }
+
+    private function upgradeCacheVersion()
+    {
+        if (!$this->cacheItemPool) {
+            return false;
+        }
+
+        $versionKey = sprintf('dao:%s:v', $this->dao->table());
+        $versionItem = $this->getCacheItem($versionKey)->get();
+        $newVersion = (int) $versionItem->get() + 1;
+
+        return $this->setCacheItem($versionItem->set($newVersion));
     }
 }
