@@ -31,11 +31,11 @@
 
     <filter>
         <whitelist>
-            <file>src/Context/Biz.php</file>
-            <file>src/Dao/GeneralDaoImpl.php</file>
-            <file>src/Dao/MigrationBootstrap.php</file>
-            <file>src/DataStructure/UniquePriorityQueue.php</file>
-            <file>src/UnitTests/UnitTestsBootstrap.php</file>
+            <file>./src/Context/Biz.php</file>
+            <file>./src/Dao/GeneralDaoImpl.php</file>
+            <file>./src/Dao/MigrationBootstrap.php</file>
+            <file>./src/DataStructure/UniquePriorityQueue.php</file>
+            <file>./src/UnitTests/UnitTestsBootstrap.php</file>
         </whitelist>
     </filter>
 </phpunit>
