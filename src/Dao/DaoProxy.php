@@ -10,12 +10,19 @@ class DaoProxy
     protected $dao;
     protected $serializer;
     protected $cacheItemPool;
+    protected $cacheTables;
 
-    public function __construct(DaoInterface $dao, SerializerInterface $serializer, CacheItemPoolInterface $cacheItemPool = null)
+    public function __construct(DaoInterface $dao, SerializerInterface $serializer)
     {
         $this->dao = $dao;
         $this->serializer = $serializer;
+
+    }
+
+    public function initCacheAdapter(CacheItemPoolInterface $cacheItemPool, array $cacheTables)
+    {
         $this->cacheItemPool = $cacheItemPool;
+        $this->cacheTables = $cacheTables;
     }
 
     public function __call($method, $arguments)
@@ -305,6 +312,23 @@ class DaoProxy
         }
     }
 
+    private function cacheEnabled()
+    {
+        if (!$this->cacheItemPool) {
+            return false;
+        }
+
+        if (empty($this->cacheTables)) {
+            return false;
+        }
+
+        if (!in_array($this->dao->table(), $this->cacheTables)) {
+            return false;
+        }
+
+        return true;
+    }
+
     /**
      * get cache item from pool, will return a new cache item if not exist
      * @param $key
@@ -312,7 +336,7 @@ class DaoProxy
      */
     private function getCacheItem($key)
     {
-        if (!$this->cacheItemPool) {
+        if (!$this->cacheEnabled()) {
             return false;
         }
 
@@ -329,7 +353,7 @@ class DaoProxy
      */
     private function setCacheItem(CacheItemInterface $cacheItem)
     {
-        if (!$this->cacheItemPool) {
+        if (!$this->cacheEnabled()) {
             return false;
         }
 
@@ -338,18 +362,25 @@ class DaoProxy
 
     private function getCacheKey($method, $arguments)
     {
-        return sprintf('dao.%s.v%s.%s.%s', $this->dao->table(), $this->getCacheVersion(), $method, md5(json_encode($arguments)));
+        $methodHash = md5(json_encode($arguments));
+        // $methodHash = json_encode($arguments);
+        // $methodHash = str_replace('"', '', $methodHash);
+        // $methodHash = str_replace('{', '|', $methodHash);
+        // $methodHash = str_replace('}', '|', $methodHash);
+        // $methodHash = str_replace(':', '~', $methodHash);
+
+        return sprintf('dao.%s.v%s.%s.%s', $this->dao->table(), $this->getCacheVersion(), $method, $methodHash);
     }
 
     private function getCacheVersion()
     {
         $defaultVersion = 1;
 
-        if (!$this->cacheItemPool) {
+        if (!$this->cacheEnabled()) {
             return $defaultVersion;
         }
 
-        $versionKey = sprintf('dao:%s:v', $this->dao->table());
+        $versionKey = sprintf('dao.version.%s', $this->dao->table());
         $versionItem = $this->getCacheItem($versionKey);
         if ($versionItem->isHit()) {
             return $versionItem->get();
@@ -362,12 +393,12 @@ class DaoProxy
 
     private function upgradeCacheVersion()
     {
-        if (!$this->cacheItemPool) {
+        if (!$this->cacheEnabled()) {
             return false;
         }
 
-        $versionKey = sprintf('dao:%s:v', $this->dao->table());
-        $versionItem = $this->getCacheItem($versionKey)->get();
+        $versionKey = sprintf('dao.version.%s', $this->dao->table());
+        $versionItem = $this->getCacheItem($versionKey);
         $newVersion = (int) $versionItem->get() + 1;
 
         return $this->setCacheItem($versionItem->set($newVersion));

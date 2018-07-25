@@ -10,8 +10,10 @@ php:
 
 services:
   - mysql
+  - redis-server
 
 before_install:
+  - echo "extension = redis.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
   - mysql -e 'CREATE DATABASE `biz-base-test` DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci'
   - composer install
 

@@ -25,6 +25,7 @@ class Biz extends Container
         };
 
         $this['dao.cache.adapter'] = null;
+        $this['dao.cache.tables'] = [];
 
         $this['dispatcher'] = function () {
             return new EventDispatcher();
@@ -42,7 +43,11 @@ class Biz extends Container
         $this['autoload.object_maker.dao'] = function ($biz) {
             return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
-                return new DaoProxy(new $class($biz), $this['dao.serializer'], $this['dao.cache.adapter']);
+                $daoProxy = new DaoProxy(new $class($biz), $this['dao.serializer']);
+                if ($this['dao.cache.adapter']) {
+                    $daoProxy->initCacheAdapter($this['dao.cache.adapter'], $this['dao.cache.tables']);
+                }
+                return $daoProxy;
             };
         };
 
