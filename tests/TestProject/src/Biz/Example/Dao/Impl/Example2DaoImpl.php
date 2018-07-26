@@ -26,11 +26,6 @@ class Example2DaoImpl extends GeneralDaoImpl implements ExampleDao
         return $this->db()->fetchAll($this->sql($sql, $orderBys, $start, $limit), $ids) ?: array();
     }
 
-    public function updateByNameAndCode($name, $code, array $fields)
-    {
-        return $this->update(array('name' => $name, 'code' => $code), $fields);
-    }
-
     public function declares()
     {
         return array(

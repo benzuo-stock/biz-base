@@ -9,6 +9,10 @@ class DaoProxy
 {
     protected $dao;
     protected $serializer;
+
+    /**
+     * @var CacheItemPoolInterface
+     */
     protected $cacheItemPool;
     protected $cacheTables;
 
@@ -16,7 +20,6 @@ class DaoProxy
     {
         $this->dao = $dao;
         $this->serializer = $serializer;
-
     }
 
     public function initCacheAdapter(CacheItemPoolInterface $cacheItemPool, array $cacheTables)
@@ -72,7 +75,7 @@ class DaoProxy
             return $row;
         }
 
-        $cacheItem = $this->getCacheItem($this->getCacheKey($method, $arguments));
+        $cacheItem = $this->getCacheItem($this->getRowCacheKey($this->getRowId($method, $arguments)));
         if ($cacheItem && $cacheItem->isHit()) {
             return $cacheItem->get();
         }
@@ -80,6 +83,9 @@ class DaoProxy
         $row = $this->callRealDao($method, $arguments);
         $this->unserialize($row);
 
+        $rowId = $row['id'];
+        $this->setRowId($method, $arguments, $rowId);
+        $cacheItem = $this->getCacheItem($this->getRowCacheKey($rowId));
         if ($cacheItem) {
             $this->setCacheItem($cacheItem->set($row));
         }
@@ -94,7 +100,7 @@ class DaoProxy
 
     protected function search($method, $arguments)
     {
-        $cacheItem = $this->getCacheItem($this->getCacheKey($method, $arguments));
+        $cacheItem = $this->getCacheItem($this->getTableCacheKey($method, $arguments));
         if ($cacheItem && $cacheItem->isHit()) {
             return $cacheItem->get();
         }
@@ -114,7 +120,7 @@ class DaoProxy
 
     protected function count($method, $arguments)
     {
-        $cacheItem = $this->getCacheItem($this->getCacheKey($method, $arguments));
+        $cacheItem = $this->getCacheItem($this->getTableCacheKey($method, $arguments));
         if ($cacheItem && $cacheItem->isHit()) {
             return $cacheItem->get();
         }
@@ -147,7 +153,7 @@ class DaoProxy
         $row = $this->callRealDao($method, $arguments);
         $this->unserialize($row);
 
-        $this->upgradeCacheVersion();
+        $this->updateCacheVersion();
 
         return $row;
     }
@@ -174,36 +180,37 @@ class DaoProxy
         $this->serialize($arguments[$lastKey]);
 
         $row = $this->callRealDao($method, $arguments);
-
-        // if (!is_array($row) && !is_numeric($row) && !is_null($row)) {
-        //     throw new DaoException('update method return value must be array type or int type');
-        // }
-
         if (is_array($row)) {
             $this->unserialize($row);
         }
 
-        $this->upgradeCacheVersion();
+        $this->deleteCacheItem($this->getRowCacheKey($row['id']));
+        $this->updateCacheVersion();
 
         return $row;
     }
 
     protected function wave($method, $arguments)
     {
-        $result = $this->callRealDao($method, $arguments);
+        $row = $this->callRealDao($method, $arguments);
+        if (is_array($row)) {
+            $this->unserialize($row);
+        }
 
-        $this->upgradeCacheVersion();
+        $this->deleteCacheItem($this->getRowCacheKey($row['id']));
+        $this->updateCacheVersion();
 
-        return $result;
+        return $row;
     }
 
     protected function delete($method, $arguments)
     {
-        $result = $this->callRealDao($method, $arguments);
+        $id = $this->callRealDao($method, $arguments);
 
-        $this->upgradeCacheVersion();
+        $this->deleteCacheItem($this->getRowCacheKey($id));
+        $this->updateCacheVersion();
 
-        return $result;
+        return $id;
     }
 
     protected function batchCreate($method, $arguments)
@@ -229,7 +236,7 @@ class DaoProxy
 
         $result = $this->callRealDao($method, $arguments);
 
-        $this->upgradeCacheVersion();
+        $this->updateCacheVersion();
 
         return $result;
     }
@@ -254,7 +261,10 @@ class DaoProxy
 
         $result = $this->callRealDao($method, $arguments);
 
-        $this->upgradeCacheVersion();
+        foreach ($arguments[0] as $id) {
+            $this->deleteCacheItem($this->getRowCacheKey($id));
+        }
+        $this->updateCacheVersion();
 
         return $result;
     }
@@ -263,7 +273,7 @@ class DaoProxy
     {
         $result = $this->callRealDao($method, $arguments);
 
-        $this->upgradeCacheVersion();
+        $this->updateCacheVersion();
 
         return $result;
     }
@@ -330,13 +340,53 @@ class DaoProxy
     }
 
     /**
-     * get cache item from pool, will return a new cache item if not exist
+     * Confirms if the cache contains specified cache item.
+     * @param $key
+     * @return bool
+     */
+    private function hasCacheItem($key)
+    {
+        if (!$this->cacheEnabled()) {
+            return false;
+        }
+
+        try {
+            return $this->cacheItemPool->hasItem($key);
+        } catch (\Psr\Cache\InvalidArgumentException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Removes the item from the pool.
+     * @param $key
+     * @return bool
+     */
+    private function deleteCacheItem($key)
+    {
+        if (!$this->cacheEnabled()) {
+            return false;
+        }
+
+        try {
+            return $this->cacheItemPool->deleteItem($key);
+        } catch (\Psr\Cache\InvalidArgumentException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Return cache item from pool, this will return a new cache item if not exist
      * @param $key
      * @return bool|CacheItemInterface
      */
     private function getCacheItem($key)
     {
         if (!$this->cacheEnabled()) {
+            return false;
+        }
+
+        if (empty($key)) {
             return false;
         }
 
@@ -360,24 +410,24 @@ class DaoProxy
         return $this->cacheItemPool->save($cacheItem);
     }
 
-    private function getCacheKey($method, $arguments)
+    private function getTableCacheKey($method, $arguments)
     {
-        $methodHash = md5(json_encode($arguments));
-        // $methodHash = json_encode($arguments);
-        // $methodHash = str_replace('"', '', $methodHash);
-        // $methodHash = str_replace('{', '|', $methodHash);
-        // $methodHash = str_replace('}', '|', $methodHash);
-        // $methodHash = str_replace(':', '~', $methodHash);
+        return sprintf('dao.%s.v%s.%s.%s', $this->dao->table(), $this->getCacheVersion(), $method, md5(json_encode($arguments)));
+    }
 
-        return sprintf('dao.%s.v%s.%s.%s', $this->dao->table(), $this->getCacheVersion(), $method, $methodHash);
+    private function getRowCacheKey($rowId)
+    {
+        if (empty($rowId)) {
+            return null;
+        }
+
+        return sprintf('dao.%s.id%s', $this->dao->table(), $rowId);
     }
 
     private function getCacheVersion()
     {
-        $defaultVersion = 1;
-
         if (!$this->cacheEnabled()) {
-            return $defaultVersion;
+            return '';
         }
 
         $versionKey = sprintf('dao.version.%s', $this->dao->table());
@@ -386,21 +436,48 @@ class DaoProxy
             return $versionItem->get();
         }
 
-        $this->setCacheItem($versionItem->set($defaultVersion));
-
-        return $defaultVersion;
+        return $this->updateCacheVersion();
     }
 
-    private function upgradeCacheVersion()
+    private function updateCacheVersion()
     {
         if (!$this->cacheEnabled()) {
-            return false;
+            return '';
         }
 
         $versionKey = sprintf('dao.version.%s', $this->dao->table());
         $versionItem = $this->getCacheItem($versionKey);
-        $newVersion = (int) $versionItem->get() + 1;
+        $versionItem->set(time());
 
-        return $this->setCacheItem($versionItem->set($newVersion));
+        $this->setCacheItem($versionItem);
+
+        return $versionItem->get();
+    }
+
+    private function getRowId($method, $arguments)
+    {
+        $methodHash = sprintf('%s_%s', $method, md5(json_encode($arguments)));
+        $idKey = sprintf('dao.%s.hash.%s.id', $this->dao->table(), $methodHash);
+
+        if (!$this->hasCacheItem($idKey)) {
+            return null;
+        }
+
+        $idItem = $this->getCacheItem($idKey);
+        if (!$idItem->isHit()) {
+            return null;
+        }
+
+        return $idItem->get();
+    }
+
+    private function setRowId($method, $arguments, $id)
+    {
+        $methodHash = sprintf('%s_%s', $method, md5(json_encode($arguments)));
+        $idKey = sprintf('dao.%s.hash.%s.id', $this->dao->table(), $methodHash);
+        $idItem = $this->getCacheItem($idKey);
+
+        $idItem->set($id);
+        $this->setCacheItem($idItem);
     }
 }

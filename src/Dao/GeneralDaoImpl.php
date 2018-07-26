@@ -15,7 +15,7 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
         $this->biz = $biz;
     }
 
-    public function create($fields)
+    public function create(array $fields)
     {
         $affected = $this->db()->insert($this->table(), $fields);
         if ($affected <= 0) {
@@ -25,44 +25,38 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
         return $this->get($this->db()->lastInsertId());
     }
 
-    public function update($identifier, array $fields)
+    public function update($id, array $fields)
     {
-        if (empty($identifier)) {
-            return null;
-        }
+        $this->db()->update($this->table, $fields, array('id' => $id));
 
-        if (is_numeric($identifier)) {
-            return $this->updateById($identifier, $fields);
-        }
-
-        if (is_array($identifier)) {
-            return $this->updateByConditions($identifier, $fields);
-        }
-
-        throw new DaoException('update arguments type error');
+        return $this->get($id);
     }
 
     public function delete($id)
     {
-        return $this->db()->delete($this->table(), array('id' => $id));
+        $this->db()->delete($this->table(), array('id' => $id));
+
+        return $id;
     }
 
-    public function wave(array $ids, array $diffs)
+    public function wave($id, array $diffs)
     {
         $sets = array_map(function ($name) {
             return "{$name} = {$name} + ?";
         }, array_keys($diffs));
 
-        $marks = str_repeat('?,', count($ids) - 1).'?';
+        $sql = "UPDATE {$this->table()} SET ".implode(', ', $sets)." WHERE id = ?";
 
-        $sql = "UPDATE {$this->table()} SET ".implode(', ', $sets)." WHERE id IN ($marks)";
+        $this->db()->executeUpdate($sql, array_merge(array_values($diffs), array($id)));
 
-        return $this->db()->executeUpdate($sql, array_merge(array_values($diffs), $ids));
+        return $this->get($id);
     }
 
-    public function get($id, $lock = false)
+    public function get($id, array $options = array())
     {
+        $lock = isset($options['lock']) && true === $options['lock'];
         $sql = "SELECT * FROM {$this->table()} WHERE id = ?".($lock ? ' FOR UPDATE' : '');
+
         return $this->db()->fetchAssoc($sql, array($id)) ?: null;
     }
 
@@ -88,31 +82,6 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
             ->select('COUNT(*)');
 
         return (int) ($builder->execute()->fetchColumn(0));
-    }
-
-    protected function updateById($id, $fields)
-    {
-        $this->db()->update($this->table, $fields, array('id' => $id));
-
-        return $this->get($id);
-    }
-
-    protected function updateByConditions(array $conditions, array $fields)
-    {
-        $builder = $this->createQueryBuilder($conditions)
-            ->update($this->table, $this->table);
-
-        foreach ($fields as $key => $value) {
-            $builder
-                ->set($key, ':'.$key)
-                ->setParameter($key, $value);
-        }
-
-        $builder->execute();
-
-        $resultBuilder = $this->createQueryBuilder($conditions)->select('*')->from($this->table());
-
-        return $resultBuilder->execute()->fetchAll();
     }
 
     /**

@@ -100,20 +100,6 @@ class GeneralDaoImplTest extends TestCase
         }
     }
 
-    public function testUpdateByNameAndCode()
-    {
-        foreach ($this->getTestDao() as $dao) {
-            $dao = $this->biz->dao($dao);
-            $row = $dao->create([
-                'name' => 'test1',
-                'code' => 'test1'
-            ]);
-
-            $row = $dao->updateByNameAndCode('test1', 'test1', ['content' => 'test']);
-            $this->assertEquals('test', $row[0]['content']);
-        }
-    }
-
     private function getTestDao()
     {
         return [
@@ -227,7 +213,7 @@ class GeneralDaoImplTest extends TestCase
         $row = $dao->create(['name' => 'test1']);
 
         $diff = ['counter1' => 1, 'counter2' => 2];
-        $waved = $dao->wave([$row['id']], $diff);
+        $waved = $dao->wave($row['id'], $diff);
         $row = $dao->get($row['id']);
 
         $this->assertEquals(1, $waved);
@@ -235,7 +221,7 @@ class GeneralDaoImplTest extends TestCase
         $this->assertEquals(2, $row['counter2']);
 
         $diff = ['counter1' => -1, 'counter2' => -1];
-        $waved = $dao->wave([$row['id']], $diff);
+        $waved = $dao->wave($row['id'], $diff);
         $row = $dao->get($row['id']);
 
         $this->assertEquals(1, $waved);
@@ -506,7 +492,7 @@ class GeneralDaoImplTest extends TestCase
         $row1CacheV1 = $this->getCacheValue($dao, 1, 'get', [$row1['id']]);
         $this->assertEquals('test1', $row1CacheV1['name']);
 
-        $dao->wave([$row1['id']], ['counter1' => 1]);
+        $dao->wave($row1['id'], ['counter1' => 1]);
         $this->assertEquals(3, $this->getCacheVersion($dao));
         $row1 = $dao->get($row1['id']);
         $row1Cache = $this->getCacheValue($dao, 3, 'get', [$row1['id']]);
