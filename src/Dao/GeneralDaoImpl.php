@@ -60,6 +60,11 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
         return $this->db()->fetchAssoc($sql, array($id)) ?: null;
     }
 
+    public function find(array $ids)
+    {
+        return $this->findInField('id', $ids);
+    }
+
     public function search($conditions, $orderBys, $start, $limit)
     {
         $builder = $this->createQueryBuilder($conditions)

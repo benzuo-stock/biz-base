@@ -216,7 +216,8 @@ class GeneralDaoImplTest extends TestCase
         $waved = $dao->wave($row['id'], $diff);
         $row = $dao->get($row['id']);
 
-        $this->assertEquals(1, $waved);
+        $this->assertEquals($row['counter1'], $waved['counter1']);
+        $this->assertEquals($row['counter2'], $waved['counter2']);
         $this->assertEquals(1, $row['counter1']);
         $this->assertEquals(2, $row['counter2']);
 
@@ -224,7 +225,8 @@ class GeneralDaoImplTest extends TestCase
         $waved = $dao->wave($row['id'], $diff);
         $row = $dao->get($row['id']);
 
-        $this->assertEquals(1, $waved);
+        $this->assertEquals($row['counter1'], $waved['counter1']);
+        $this->assertEquals($row['counter2'], $waved['counter2']);
         $this->assertEquals(0, $row['counter1']);
         $this->assertEquals(1, $row['counter2']);
     }
@@ -473,32 +475,53 @@ class GeneralDaoImplTest extends TestCase
         $cacheAdapter = $this->biz['dao.cache.adapter'];
         $cacheAdapter->clear();
 
+        //test create
         $row1 = $dao->create([
             'name' => 'test1',
             'counter1' => 0,
         ]);
-        $this->assertEquals(1, $this->getCacheVersion($dao));
+        $version1 = $this->getCacheVersion($dao);
+        $this->assertEquals(14, \strlen($version1));
+        //test row cache
         $row1 = $dao->get($row1['id']);
-        $row1Cache = $this->getCacheValue($dao, 1, 'get', [$row1['id']]);
+        $row1Cache = $this->getRowCacheValue($dao, $row1['id']);
         $this->assertEquals($row1, $row1Cache);
+        //test table cache
+        $rows1 = $dao->find([$row1['id']]);
+        $rows1Cache = $this->getTableCacheValue($dao, $version1, 'find', [[$row1['id']]]);
+        $this->assertEquals($rows1, $rows1Cache);
 
+        //test update
         $row1 = $dao->update($row1['id'], [
             'name' => 'test1_1',
         ]);
-        $this->assertEquals(2, $this->getCacheVersion($dao));
+        //test row cache update
         $row1 = $dao->get($row1['id']);
-        $row1Cache = $this->getCacheValue($dao, 2, 'get', [$row1['id']]);
+        $row1Cache = $this->getRowCacheValue($dao, $row1['id']);
         $this->assertEquals($row1, $row1Cache);
-        $row1CacheV1 = $this->getCacheValue($dao, 1, 'get', [$row1['id']]);
-        $this->assertEquals('test1', $row1CacheV1['name']);
+        //test table cache update and version update
+        $version2 = $this->getCacheVersion($dao);
+        $this->assertGreaterThan($version1, $version2);
+        $rows1 = $dao->find([$row1['id']]);
+        $rows1Cache = $this->getTableCacheValue($dao, $version2, 'find', [[$row1['id']]]);
+        $this->assertEquals($rows1, $rows1Cache);
+        $rows1CacheV1 = $this->getTableCacheValue($dao, $version1, 'find', [[$row1['id']]]);
+        $this->assertEquals('test1', $rows1CacheV1[0]['name']);
 
-        $dao->wave($row1['id'], ['counter1' => 1]);
-        $this->assertEquals(3, $this->getCacheVersion($dao));
+        //test wave
+        $row1 = $dao->wave($row1['id'], ['counter1' => 1]);
+        //test row cache update
         $row1 = $dao->get($row1['id']);
-        $row1Cache = $this->getCacheValue($dao, 3, 'get', [$row1['id']]);
+        $row1Cache = $this->getRowCacheValue($dao, $row1['id']);
         $this->assertEquals($row1, $row1Cache);
-        $row1CacheV1 = $this->getCacheValue($dao, 2, 'get', [$row1['id']]);
-        $this->assertEquals(0, $row1CacheV1['counter1']);
+        //test table cache update and version update
+        $version3 = $this->getCacheVersion($dao);
+        $this->assertGreaterThan($version2, $version3);
+        $rows1 = $dao->find([$row1['id']]);
+        $rows1Cache = $this->getTableCacheValue($dao, $version3, 'find', [[$row1['id']]]);
+        $this->assertEquals($rows1, $rows1Cache);
+        $rows1CacheV1 = $this->getTableCacheValue($dao, $version2, 'find', [[$row1['id']]]);
+        $this->assertEquals(0, $rows1CacheV1[0]['counter1']);
     }
 
     public function testExample2DaoCache()
@@ -520,7 +543,7 @@ class GeneralDaoImplTest extends TestCase
         ]);
         $this->assertEquals(null, $this->getCacheVersion($dao));
         $row1 = $dao->get($row1['id']);
-        $row1Cache = $this->getCacheValue($dao, 1, 'get', [$row1['id']]);
+        $row1Cache = $this->getTableCacheValue($dao, 1, 'find', [[$row1['id']]]);
         $this->assertEquals(null, $row1Cache);
     }
 
@@ -529,9 +552,15 @@ class GeneralDaoImplTest extends TestCase
         return $this->biz['dao.cache.adapter']->getItem(sprintf('dao.version.%s', $dao->table()))->get();
     }
 
-    private function getCacheValue($dao, $cacheVersion, $method, $arguments)
+    private function getTableCacheValue($dao, $cacheVersion, $method, $arguments)
     {
         $key = sprintf('dao.%s.v%s.%s.%s', $dao->table(), $cacheVersion, $method, md5(json_encode($arguments)));
+        return $this->biz['dao.cache.adapter']->getItem($key)->get();
+    }
+
+    private function getRowCacheValue($dao, $rowId)
+    {
+        $key = sprintf('dao.%s.id%s', $dao->table(), $rowId);
         return $this->biz['dao.cache.adapter']->getItem($key)->get();
     }
 }

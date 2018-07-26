@@ -14,6 +14,8 @@ interface GeneralDaoInterface extends DaoInterface
 
     public function get($id, array $options = array());
 
+    public function find(array $ids);
+
     public function search($conditions, $orderBys, $start, $limit);
 
     public function count($conditions);

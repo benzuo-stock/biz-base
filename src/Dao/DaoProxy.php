@@ -378,22 +378,22 @@ class DaoProxy
     /**
      * Return cache item from pool, this will return a new cache item if not exist
      * @param $key
-     * @return bool|CacheItemInterface
+     * @return CacheItemInterface
      */
     private function getCacheItem($key)
     {
         if (!$this->cacheEnabled()) {
-            return false;
+            return null;
         }
 
         if (empty($key)) {
-            return false;
+            return null;
         }
 
         try {
             return $this->cacheItemPool->getItem($key);
         } catch (\Psr\Cache\InvalidArgumentException $e) {
-            return false;
+            return null;
         }
     }
 
@@ -436,28 +436,34 @@ class DaoProxy
             return $versionItem->get();
         }
 
-        return $this->updateCacheVersion();
+        $this->updateCacheVersion();
+
+        return $this->getCacheItem($versionKey)->get();
     }
 
     private function updateCacheVersion()
     {
         if (!$this->cacheEnabled()) {
-            return '';
+            return;
         }
 
         $versionKey = sprintf('dao.version.%s', $this->dao->table());
         $versionItem = $this->getCacheItem($versionKey);
-        $versionItem->set(time());
+
+        $version = (string) floor(microtime(true) * 10000);
+        $versionItem->set($version);
 
         $this->setCacheItem($versionItem);
-
-        return $versionItem->get();
     }
 
     private function getRowId($method, $arguments)
     {
+        if (!$this->cacheEnabled()) {
+            return null;
+        }
+
         $methodHash = sprintf('%s_%s', $method, md5(json_encode($arguments)));
-        $idKey = sprintf('dao.%s.hash.%s.id', $this->dao->table(), $methodHash);
+        $idKey = sprintf('dao.%s.map_id.%s', $this->dao->table(), $methodHash);
 
         if (!$this->hasCacheItem($idKey)) {
             return null;
@@ -473,6 +479,10 @@ class DaoProxy
 
     private function setRowId($method, $arguments, $id)
     {
+        if (!$this->cacheEnabled()) {
+            return;
+        }
+
         $methodHash = sprintf('%s_%s', $method, md5(json_encode($arguments)));
         $idKey = sprintf('dao.%s.hash.%s.id', $this->dao->table(), $methodHash);
         $idItem = $this->getCacheItem($idKey);
