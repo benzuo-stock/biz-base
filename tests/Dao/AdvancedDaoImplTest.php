@@ -169,21 +169,21 @@ class AdvancedDaoImplTest extends TestCase
 
     private function getCacheVersion()
     {
-        $dao = $this->getExampleAdvancedDao()->table();
-        return $this->biz['dao.cache.adapter']->getItem(sprintf('dao.version.%s', $dao))->get();
+        $dao = $this->getExampleAdvancedDao();
+        return $this->biz['dao.cache.adapter']->getItem(sprintf('dao.version.%s', $dao->table()))->get();
     }
 
     private function getTableCacheValue($cacheVersion, $method, $arguments)
     {
-        $dao = $this->getExampleAdvancedDao()->table();
-        $key = sprintf('dao.%s.v%s.%s_%s', $dao, $cacheVersion, $method, md5(json_encode($arguments)));
+        $dao = $this->getExampleAdvancedDao();
+        $key = sprintf('dao.%s.v%s.%s_%s', $dao->table(), $cacheVersion, $method, md5(json_encode($arguments)));
         return $this->biz['dao.cache.adapter']->getItem($key)->get();
     }
 
     private function getRowCacheValue($rowId)
     {
-        $dao = $this->getExampleAdvancedDao()->table();
-        $key = sprintf('dao.%s.id%s', $dao, $rowId);
+        $dao = $this->getExampleAdvancedDao();
+        $key = sprintf('dao.%s.id%s', $dao->table(), $rowId);
         return $this->biz['dao.cache.adapter']->getItem($key)->get();
     }
 
