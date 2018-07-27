@@ -11,7 +11,7 @@ class DaoCacheProxy
     private $cacheItemPool;
     private $cacheTables;
 
-    public function __construct(DaoInterface $dao, CacheItemPoolInterface $cacheItemPool, array $cacheTables)
+    public function __construct(DaoInterface $dao, CacheItemPoolInterface $cacheItemPool = null, array $cacheTables = [])
     {
         $this->dao = $dao;
         $this->cacheItemPool = $cacheItemPool;

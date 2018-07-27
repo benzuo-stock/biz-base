@@ -6,20 +6,12 @@ class DaoProxy
 {
     protected $dao;
     protected $serializer;
-
-    /**
-     * @var DaoCacheProxy
-     */
     protected $cacheProxy;
 
-    public function __construct(DaoInterface $dao, SerializerInterface $serializer)
+    public function __construct(DaoInterface $dao, SerializerInterface $serializer, DaoCacheProxy $cacheProxy)
     {
         $this->dao = $dao;
         $this->serializer = $serializer;
-    }
-
-    public function setCacheProxy($cacheProxy)
-    {
         $this->cacheProxy = $cacheProxy;
     }
 

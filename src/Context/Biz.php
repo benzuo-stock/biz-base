@@ -45,10 +45,8 @@ class Biz extends Container
             return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
                 $dao = new $class($biz);
-                $daoProxy = new DaoProxy($dao, $this['dao.serializer']);
-                if ($this['dao.cache.adapter']) {
-                    $daoProxy->setCacheProxy(new DaoCacheProxy($dao, $this['dao.cache.adapter'], $this['dao.cache.tables']));
-                }
+                $cacheProxy = $this['dao.cache.adapter'] ? new DaoCacheProxy($dao, $this['dao.cache.adapter'], $this['dao.cache.tables']) : new DaoCacheProxy($dao);
+                $daoProxy = new DaoProxy($dao, $this['dao.serializer'], $cacheProxy);
                 return $daoProxy;
             };
         };
