@@ -203,7 +203,7 @@ class DaoCacheProxy
 
     private function getTableCacheKey($method, $arguments)
     {
-        return sprintf('dao.%s.v%s.%s.%s', $this->dao->table(), $this->getTableVersion(), $method, md5(json_encode($arguments)));
+        return sprintf('dao.%s.v%s.%s_%s', $this->dao->table(), $this->getTableVersion(), $method, md5(json_encode($arguments)));
     }
 
     private function getTableVersion()
@@ -253,9 +253,7 @@ class DaoCacheProxy
             return null;
         }
 
-        $methodHash = sprintf('%s_%s', $method, md5(json_encode($arguments)));
-        $idKey = sprintf('dao.%s.map_id.%s', $this->dao->table(), $methodHash);
-
+        $idKey = $this->getRowIdKey($method, $arguments);
         if (!$this->hasCacheItem($idKey)) {
             return null;
         }
@@ -274,11 +272,15 @@ class DaoCacheProxy
             return;
         }
 
-        $methodHash = sprintf('%s_%s', $method, md5(json_encode($arguments)));
-        $idKey = sprintf('dao.%s.hash.%s.id', $this->dao->table(), $methodHash);
+        $idKey = $this->getRowIdKey($method, $arguments);
         $idItem = $this->getCacheItem($idKey);
 
         $idItem->set($id);
         $this->setCacheItem($idItem);
+    }
+
+    private function getRowIdKey($method, $arguments)
+    {
+        return sprintf('dao.%s.id.%s_%s', $this->dao->table(), $method, md5(json_encode($arguments)));
     }
 }

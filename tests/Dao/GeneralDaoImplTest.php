@@ -554,7 +554,7 @@ class GeneralDaoImplTest extends TestCase
 
     private function getTableCacheValue($dao, $cacheVersion, $method, $arguments)
     {
-        $key = sprintf('dao.%s.v%s.%s.%s', $dao->table(), $cacheVersion, $method, md5(json_encode($arguments)));
+        $key = sprintf('dao.%s.v%s.%s_%s', $dao->table(), $cacheVersion, $method, md5(json_encode($arguments)));
         return $this->biz['dao.cache.adapter']->getItem($key)->get();
     }
 
