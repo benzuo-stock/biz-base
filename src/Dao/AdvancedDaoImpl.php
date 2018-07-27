@@ -4,39 +4,24 @@ namespace Benzuo\Biz\Base\Dao;
 
 abstract class AdvancedDaoImpl extends GeneralDaoImpl implements AdvancedDaoInterface
 {
-    public function batchDelete(array $conditions)
+    public function batchDelete(array $ids)
     {
-        $declares = $this->declares();
-        $declareConditions = isset($declares['conditions']) ? $declares['conditions'] : array();
-        array_walk($conditions, function (&$condition, $key) use ($declareConditions) {
-            $isInDeclareCondition = false;
-            foreach ($declareConditions as $declareCondition) {
-                if (preg_match('/:'.$key.'/', $declareCondition)) {
-                    $isInDeclareCondition = true;
-                }
-            }
-
-            if (!$isInDeclareCondition) {
-                $condition = null;
-            }
-        });
-
-        $conditions = array_filter($conditions);
-
-        if (empty($conditions) || empty($declareConditions)) {
-            return 0;
+        if (empty($ids)) {
+            return [];
         }
 
-        $builder = $this->createQueryBuilder($conditions)
-            ->delete($this->table);
+        $marks = str_repeat('?,', count($ids) - 1).'?';
+        $sql = "DELETE FROM {$this->table()} WHERE id IN ({$marks});";
 
-        return $builder->execute();
+        $this->db()->executeUpdate($sql, $ids);
+
+        return $ids;
     }
 
     public function batchCreate($rows)
     {
         if (empty($rows)) {
-            return array();
+            return;
         }
 
         $rows = array_values($rows);
@@ -52,7 +37,7 @@ abstract class AdvancedDaoImpl extends GeneralDaoImpl implements AdvancedDaoInte
             $start = ($i - 1) * $pageSize;
             $pageRows = array_slice($rows, $start, $pageSize);
 
-            $params = array();
+            $params = [];
             $sql = "INSERT INTO {$this->table} ({$columnStr}) values ";
             foreach ($pageRows as $key => $row) {
                 $marks = str_repeat('?,', count($row) - 1).'?';
@@ -68,54 +53,50 @@ abstract class AdvancedDaoImpl extends GeneralDaoImpl implements AdvancedDaoInte
             $this->db()->executeUpdate($sql, $params);
             unset($params);
         }
-
-        return true;
     }
 
-    public function batchUpdate($identifies, $updateColumnNewValues, $identifyColumn = 'id')
+    public function batchUpdate(array $ids, array $updateRows)
     {
-        $updateColumns = array_keys(reset($updateColumnNewValues));
+        $updateFieldNames = array_keys(reset($updateRows));
+        $this->db()->checkFieldNames($updateFieldNames);
 
-        $this->db()->checkFieldNames($updateColumns);
-        $this->db()->checkFieldNames(array($identifyColumn));
-
-        array_walk($identifies, 'intval');
-
-        $count = count($identifies);
+        $count = count($ids);
         $pageSize = 500;
         $pageCount = ceil($count / $pageSize);
 
         for ($i = 1; $i <= $pageCount; ++$i) {
             $start = ($i - 1) * $pageSize;
-            $partIdentifies = array_slice($identifies, $start, $pageSize);
-            $partUpdateColumnNewValues = array_slice($updateColumnNewValues, $start, $pageSize);
-            $this->partUpdate($partIdentifies, $partUpdateColumnNewValues, $identifyColumn, $updateColumns);
+            $partIds = array_slice($ids, $start, $pageSize);
+            $partUpdateRows = array_slice($updateRows, $start, $pageSize);
+            $this->partUpdate($partIds, $partUpdateRows, 'id', $updateFieldNames);
         }
+
+        return $ids;
     }
 
     /**
      * @param $identifies, eg:[1,2]
-     * @param $updateColumnNewValues, eg:[['name'=>'newname1', 'code'=>'newcode1'],['name'=>'newname2', 'code'=>'newcode2']]
+     * @param $updateRows, eg:[['name'=>'newname1', 'code'=>'newcode1'],['name'=>'newname2', 'code'=>'newcode2']]
      * @param $identifyColumn, eg:id
-     * @param $updateColumns, eg:[name, code]
+     * @param $updateFieldNames, eg:[name, code]
      *
      * @return int
      */
-    private function partUpdate($identifies, $updateColumnNewValues, $identifyColumn, $updateColumns)
+    private function partUpdate($identifies, $updateRows, $identifyColumn, $updateFieldNames)
     {
         $sql = "UPDATE {$this->table} SET ";
 
-        $updateSql = array();
+        $updateSql = [];
 
-        $params = array();
-        foreach ($updateColumns as $updateColumn) {
-            $caseWhenSql = "{$updateColumn} = CASE {$identifyColumn} ";
+        $params = [];
+        foreach ($updateFieldNames as $updateFieldName) {
+            $caseWhenSql = "{$updateFieldName} = CASE {$identifyColumn} ";
 
             foreach ($identifies as $identifyIndex => $identify) {
-                $params[] = $updateColumnNewValues[$identifyIndex][$updateColumn];
+                $params[] = $updateRows[$identifyIndex][$updateFieldName];
                 $caseWhenSql .= " WHEN '{$identify}' THEN ? ";
                 if ($identifyIndex === count($identifies) - 1) {
-                    $caseWhenSql .= " ELSE {$updateColumn} END";
+                    $caseWhenSql .= " ELSE {$updateFieldName} END";
                 }
             }
 
@@ -132,6 +113,6 @@ abstract class AdvancedDaoImpl extends GeneralDaoImpl implements AdvancedDaoInte
 
         $sql .= " WHERE {$identifyColumn} IN ({$identifiesStr})";
 
-        return $this->db()->executeUpdate($sql, $params);
+        $this->db()->executeUpdate($sql, $params);
     }
 }

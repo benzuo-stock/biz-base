@@ -8,5 +8,5 @@ interface AdvancedDaoInterface extends GeneralDaoInterface
 
     public function batchCreate($rows);
 
-    public function batchUpdate($identifies, $updateColumnsList, $identifyColumn = 'id');
+    public function batchUpdate(array $ids, array $updateRows);
 }

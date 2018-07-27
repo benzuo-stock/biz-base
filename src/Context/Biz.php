@@ -2,6 +2,7 @@
 
 namespace Benzuo\Biz\Base\Context;
 
+use Benzuo\Biz\Base\Dao\DaoCacheProxy;
 use Benzuo\Biz\Base\Dao\DaoProxy;
 use Benzuo\Biz\Base\Dao\FieldSerializer;
 use Pimple\Container;
@@ -43,9 +44,10 @@ class Biz extends Container
         $this['autoload.object_maker.dao'] = function ($biz) {
             return function ($namespace, $name) use ($biz) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
-                $daoProxy = new DaoProxy(new $class($biz), $this['dao.serializer']);
+                $dao = new $class($biz);
+                $daoProxy = new DaoProxy($dao, $this['dao.serializer']);
                 if ($this['dao.cache.adapter']) {
-                    $daoProxy->initCacheAdapter($this['dao.cache.adapter'], $this['dao.cache.tables']);
+                    $daoProxy->setCacheProxy(new DaoCacheProxy($dao, $this['dao.cache.adapter'], $this['dao.cache.tables']));
                 }
                 return $daoProxy;
             };
