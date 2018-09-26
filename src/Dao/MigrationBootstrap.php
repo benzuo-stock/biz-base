@@ -7,20 +7,16 @@ use Pimple\Container;
 
 class MigrationBootstrap
 {
-    protected $db;
-
-    protected $directories;
-
-    public function __construct($db, \ArrayObject $directories)
+    public function __construct($biz)
     {
-        $this->db = $db;
-        $this->directories = $directories;
+        $this->biz = $biz;
     }
 
     public function boot()
     {
         $container = new Container();
-        $container['db'] = $this->db;
+        $container['biz'] = $this->biz;
+        $container['db'] = $container['biz']['db'];
 
         // see: http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/cookbook/mysql-enums.html
         $container['db']->getDatabasePlatform()->registerDoctrineTypeMapping('enum', 'string');
@@ -30,13 +26,14 @@ class MigrationBootstrap
         };
 
         $migrations = array();
-        foreach ($this->directories as $directory) {
+        $directories = $this->biz['migration.directories'];
+        foreach ($directories as $directory) {
             $migrations = array_merge($migrations, glob("{$directory}/*.php"));
         }
         $container['phpmig.migrations'] = $migrations;
 
-        if (count($this->directories) > 0) {
-            $container['phpmig.migrations_path'] = reset($this->directories);
+        if (count($directories) > 0) {
+            $container['phpmig.migrations_path'] = reset($directories);
         }
 
         return $container;
