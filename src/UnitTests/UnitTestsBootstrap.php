@@ -26,7 +26,7 @@ class UnitTestsBootstrap
         BaseTestCase::setBiz($this->biz);
         BaseTestCase::emptyDatabase();
 
-        $migration = new MigrationBootstrap($this->biz['db'], $this->biz['migration.directories']);
+        $migration = new MigrationBootstrap($this->biz);
         $container = $migration->boot();
 
         $adapter = $container['phpmig.adapter'];
